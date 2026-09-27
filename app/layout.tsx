@@ -10,9 +10,11 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Kapadokya OSGB | İş Sağlığı ve Güvenliği Hizmetleri",
-  description: "İş sağlığı ve güvenliği uzmanlığı, işyeri hekimliği ve kurumsal danışmanlık.",
+export const metadata = {
+  metadataBase: new URL('https://kapadokyaosgb.com'),
+  title: 'Kapadokya OSGB - Ortak Sağlık ve Güvenlik Birimi | Nevşehir',
+  description: 'Nevşehir Kapadokya OSGB - İş Sağlığı ve Güvenliği, Mobil Sağlık, İşe Giriş Sağlık Raporu ve Periyodik Muayene Hizmetleri.',
+  keywords: ['Kapadokya OSGB', 'Nevşehir OSGB', 'İş Sağlığı ve Güvenliği Nevşehir', 'Sağlık Raporu Nevşehir', 'Kapadokya Sağlık'],
 };
 
 export default function RootLayout({
