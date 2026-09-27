@@ -49,14 +49,14 @@ export default function Footer() {
               <div className="flex items-center gap-3">
                 <Phone className="h-4 w-4 text-[#ff7043] shrink-0" />
                 <a href="tel:+903840000000" className="hover:text-white transition">
-                  0 (384) 000 00 00
+                  0 (0384) 213 02 00
                 </a>
               </div>
 
               <div className="flex items-center gap-3">
                 <Mail className="h-4 w-4 text-[#ff7043] shrink-0" />
                 <a href="mailto:info@kapadokyaosgb.com" className="hover:text-white transition">
-                  info@kapadokyaosgb.com
+                  info@kapadokyadanismanlik.com
                 </a>
               </div>
 
