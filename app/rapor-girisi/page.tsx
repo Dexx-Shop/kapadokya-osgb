@@ -10,13 +10,14 @@ import {
   Send, 
   CheckCircle2, 
   Clock, 
-  Building2, 
   UserCheck,
   Check,
-  ArrowDownCircle,
-  ArrowUpCircle,
   FileSpreadsheet,
-  AlertCircle
+  Edit2,
+  Trash2,
+  X,
+  ArrowUpCircle,
+  Save
 } from "lucide-react";
 
 interface HealthReport {
@@ -49,6 +50,15 @@ export default function RaporGirisiPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Düzenleme Modali State'leri (Muhasebe için)
+  const [editingItem, setEditingItem] = useState<HealthReport | null>(null);
+  const [editPatientName, setEditPatientName] = useState("");
+  const [editTcNo, setEditTcNo] = useState("");
+  const [editCompanyName, setEditCompanyName] = useState("");
+  const [editPaymentMethod, setEditPaymentMethod] = useState<"nakit" | "pos" | "cari">("nakit");
+  const [editAmount, setEditAmount] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+
   // Canlı Kayıtlar
   const [reports, setReports] = useState<HealthReport[]>([]);
 
@@ -56,7 +66,6 @@ export default function RaporGirisiPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    // Bugünün tarih saatini varsayılan yap
     const now = new Date();
     const formatted = `${now.toLocaleDateString("tr-TR")} ${now.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`;
     setReportDate(formatted);
@@ -100,16 +109,15 @@ export default function RaporGirisiPage() {
     const { data } = await supabase
       .from("health_reports")
       .select("*")
-      .order("report_date", { ascending: false })
-      .limit(30);
+      .order("report_date", { ascending: false });
 
     setReports(data || []);
   }
 
-  // SUPABASE REALTIME CANLI DİNLEME (F5 İHTİYACINI KALDIRIR)
+  // SUPABASE REALTIME CANLI DİNLEME
   useEffect(() => {
     const channel = supabase
-      .channel("health_reports_white_realtime")
+      .channel("health_reports_live_stream")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "health_reports" },
@@ -171,7 +179,7 @@ export default function RaporGirisiPage() {
         payment_method: paymentMethod,
         amount: Number(amount) || 0,
         notes: notes.trim(),
-        status: "bekliyor", // ALT KATA SEVK EDİLDİ
+        status: "bekliyor", // Alt kata gitti
         report_date: new Date().toISOString(),
         created_by_name: userName,
         created_by_role: userRole,
@@ -183,7 +191,7 @@ export default function RaporGirisiPage() {
     if (error) {
       setMessage({ type: "error", text: "Hata: " + error.message });
     } else {
-      setMessage({ type: "success", text: `${patientName} alt kata sevk edildi ve sıraya alındı!` });
+      setMessage({ type: "success", text: `${patientName} alt kata sevk edildi!` });
       setPatientName("");
       setTcNo("");
       setCompanyName("");
@@ -192,7 +200,7 @@ export default function RaporGirisiPage() {
     }
   }
 
-  // Alt Kat Tetkiki Bitirir (Muhasebeye Gönderir)
+  // Alt Kat Tetkiki Bitirir (Muhasebeye Yollar)
   async function handleAltKatComplete(reportId: string) {
     await supabase
       .from("health_reports")
@@ -200,12 +208,53 @@ export default function RaporGirisiPage() {
       .eq("id", reportId);
   }
 
-  // Muhasebe Kontrol Eder ve Kesinleştirir
+  // Muhasebe Kontrol Eder ve Kesinleştirir (Artık personeller göremez, sadece admin görür)
   async function handleMuhasebeFinalize(reportId: string) {
     await supabase
       .from("health_reports")
       .update({ status: "tamamlandi" })
       .eq("id", reportId);
+  }
+
+  // Muhasebe Henüz Kontrol Edilmemiş Kaydı Siler
+  async function handleDelete(reportId: string, name: string) {
+    if (!confirm(`${name} isimli hastanın kaydını silmek istediğinize emin misiniz?`)) return;
+    await supabase.from("health_reports").delete().eq("id", reportId);
+  }
+
+  // Düzenleme Modali Aç
+  function openEditModal(item: HealthReport) {
+    setEditingItem(item);
+    setEditPatientName(item.patient_name);
+    setEditTcNo(item.tc_no);
+    setEditCompanyName(item.company_name);
+    setEditPaymentMethod(item.payment_method);
+    setEditAmount(item.amount.toString());
+    setEditNotes(item.notes || "");
+  }
+
+  // Düzenlemeyi Kaydet
+  async function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingItem) return;
+
+    const { error } = await supabase
+      .from("health_reports")
+      .update({
+        patient_name: editPatientName.trim(),
+        tc_no: editTcNo.trim(),
+        company_name: editCompanyName.trim(),
+        payment_method: editPaymentMethod,
+        amount: Number(editAmount) || 0,
+        notes: editNotes.trim(),
+      })
+      .eq("id", editingItem.id);
+
+    if (error) {
+      alert("Hata: " + error.message);
+    } else {
+      setEditingItem(null);
+    }
   }
 
   if (loading) {
@@ -218,7 +267,7 @@ export default function RaporGirisiPage() {
 
   const altKatBekleyenler = reports.filter((r) => r.status === "bekliyor");
   const muhasebeKontrolBekleyenler = reports.filter((r) => r.status === "alt_kat_tamamlandi");
-  const sonRaporlar = reports.filter((r) => r.status === "tamamlandi");
+  const sonKesinlesenRaporlar = reports.filter((r) => r.status === "tamamlandi");
 
   const terminalTitle = 
     userRole === "muhasebe" 
@@ -241,20 +290,22 @@ export default function RaporGirisiPage() {
             Sağlık Raporu Kayıt Portalı
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Rapor almaya gelen kişinin kimlik, firma ve tahsilat bilgilerini giriniz.
+            {userRole === "alt_kat" 
+              ? "Muhasebeden alt kata sevk edilen hastaları görüntüleyin ve işlemleri tamamlayın."
+              : "Rapor almaya gelen kişinin kimlik, firma ve tahsilat bilgilerini giriniz."}
           </p>
         </div>
 
         {/* ========================================================================= */}
-        {/* EĞER ALT KATTAN GELEN KONTROL BEKLEYEN HASTA VARSA (MUHASEBE & ADMIN GÖRÜR) */}
+        {/* 1. MUHASEBE & ADMIN: ALT KATTAN GELEN KONTROL BEKLEYEN HASTALAR */}
         {/* ========================================================================= */}
-        {(userRole === "muhasebe" || userRole === "admin") && muhasebeKontrolBekleyenler.length > 0 && (
-          <div className="rounded-3xl bg-amber-50/80 border border-amber-200 p-6 shadow-sm animate-in fade-in space-y-3">
+        {(userRole === "muhasebe" || userRole === "admin") && (
+          <div className="rounded-3xl bg-amber-50/80 border border-amber-200 p-6 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ArrowUpCircle className="h-5 w-5 text-amber-600 animate-bounce" />
                 <h3 className="text-sm font-bold text-amber-900">
-                  Alt Kattan Tetkiki Bitenler (Kontrol & Onay Bekliyor)
+                  Alt Kattan Çıkanlar (Kontrol & Onay Bekliyor)
                 </h3>
               </div>
               <span className="text-xs font-bold bg-amber-200/80 text-amber-900 px-2.5 py-0.5 rounded-full">
@@ -262,29 +313,57 @@ export default function RaporGirisiPage() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              {muhasebeKontrolBekleyenler.map((item) => (
-                <div key={item.id} className="p-4 rounded-2xl bg-white border border-amber-200 shadow-sm flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-bold text-slate-900">{item.patient_name}</div>
-                    <div className="text-xs text-slate-500 font-mono">{item.tc_no} • {item.company_name}</div>
-                    <div className="text-xs font-bold text-emerald-600 mt-0.5">₺{item.amount} ({item.payment_method.toUpperCase()})</div>
+            {muhasebeKontrolBekleyenler.length === 0 ? (
+              <div className="py-4 text-center text-xs text-slate-500 italic">
+                Şu anda alt kattan dönen bekleyen bir hasta yok.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                {muhasebeKontrolBekleyenler.map((item) => (
+                  <div key={item.id} className="p-4 rounded-2xl bg-white border border-amber-200 shadow-sm flex items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-bold text-slate-900">{item.patient_name}</div>
+                      <div className="text-xs text-slate-500 font-mono">{item.tc_no} • {item.company_name}</div>
+                      <div className="text-xs font-bold text-emerald-600">₺{item.amount} ({item.payment_method.toUpperCase()})</div>
+                      {item.notes && <div className="text-[11px] text-slate-400">Not: {item.notes}</div>}
+                    </div>
+
+                    <div className="flex flex-col gap-1.5 shrink-0 items-end">
+                      <button
+                        onClick={() => handleMuhasebeFinalize(item.id)}
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm flex items-center gap-1 cursor-pointer active:scale-95"
+                        title="Onayla ve Şirket Raporlarına Kaydet"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        <span>Kontrol Edildi</span>
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => openEditModal(item)}
+                          className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition cursor-pointer text-[11px] flex items-center gap-1"
+                        >
+                          <Edit2 className="h-3 w-3" />
+                          <span>Düzenle</span>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item.id, item.patient_name)}
+                          className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition cursor-pointer"
+                          title="Kaydı Sil"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => handleMuhasebeFinalize(item.id)}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
-                  >
-                    <Check className="h-4 w-4" />
-                    <span>Kontrol Edildi</span>
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* 1. MUHASEBE & ADMIN: YENİ HASTA KAYIT FORMU */}
+        {/* 2. MUHASEBE & ADMIN: YENİ HASTA KAYIT FORMU */}
         {/* ========================================================================= */}
         {(userRole === "muhasebe" || userRole === "admin") && (
           <div className="rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-sm space-y-6">
@@ -390,7 +469,7 @@ export default function RaporGirisiPage() {
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-between">
+              <div className="pt-2">
                 <button
                   type="submit"
                   disabled={submitting}
@@ -399,25 +478,71 @@ export default function RaporGirisiPage() {
                   <Send className="h-4 w-4" />
                   <span>{submitting ? "Gönderiliyor..." : "Kaydet ve Alt Kata Sevk Et"}</span>
                 </button>
-
-                {altKatBekleyenler.length > 0 && (
-                  <span className="text-xs text-slate-500">
-                    Alt katta şu an sırada bekleyen: <strong className="text-blue-600">{altKatBekleyenler.length} kişi</strong>
-                  </span>
-                )}
               </div>
             </form>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* 2. ALT KAT İSTASYONU EKRANI (ALT KAT & ADMIN GÖRÜR) */}
+        {/* 3. MUHASEBE: ALT KATTA SIRADA BEKLEYENLERİ İZLEME & DÜZELTME ALANI */}
+        {/* ========================================================================= */}
+        {(userRole === "muhasebe" || userRole === "admin") && (
+          <div className="rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-blue-600" />
+                <span>Alt Katta Tetkiki Devam Eden Hastalar ({altKatBekleyenler.length})</span>
+              </h3>
+              <span className="text-[11px] text-slate-400">
+                (Yanlış bilgi varsa henüz alt kattayken buradan düzeltebilirsiniz)
+              </span>
+            </div>
+
+            {altKatBekleyenler.length === 0 ? (
+              <div className="py-4 text-center text-xs text-slate-400 italic">
+                Alt katta şu anda sırada bekleyen hasta yok.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {altKatBekleyenler.map((item) => (
+                  <div key={item.id} className="py-3 flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">{item.patient_name}</div>
+                      <div className="text-[11px] text-slate-500 font-mono">{item.tc_no} • {item.company_name}</div>
+                      <div className="text-[11px] text-slate-600 font-medium">₺{item.amount} • {item.payment_method.toUpperCase()}</div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openEditModal(item)}
+                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-medium transition cursor-pointer flex items-center gap-1"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                        <span>Düzenle</span>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id, item.patient_name)}
+                        className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition cursor-pointer"
+                        title="Sil"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* 4. ALT KAT İSTASYONU EKRANI (ALT KAT & ADMIN GÖRÜR - DÜZENLEME BUTONU YOK) */}
         {/* ========================================================================= */}
         {(userRole === "alt_kat" || userRole === "admin") && (
           <div className="rounded-3xl bg-white border border-blue-200 p-6 sm:p-8 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
-                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider block">Alt Kat İşlem Sırası</span>
+                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider block">ALT KAT İŞLEM SIRASI</span>
                 <h2 className="text-lg font-bold text-slate-900 mt-0.5">Sırada Bekleyen Hastalar</h2>
               </div>
               <span className="text-xs font-bold bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
@@ -426,7 +551,7 @@ export default function RaporGirisiPage() {
             </div>
 
             {altKatBekleyenler.length === 0 ? (
-              <div className="py-10 text-center text-xs text-slate-400">
+              <div className="py-12 text-center text-xs text-slate-400">
                 Şu anda alt katta işlem bekleyen hasta bulunmuyor. Muhasebeden yeni kayıt açıldığında anında buraya düşecektir.
               </div>
             ) : (
@@ -444,6 +569,7 @@ export default function RaporGirisiPage() {
                       {item.notes && <div className="text-[11px] text-amber-700 bg-amber-50 p-1.5 rounded-lg mt-1.5 border border-amber-200">Not: {item.notes}</div>}
                     </div>
 
+                    {/* Alt Kat Sadece İşlemi Bitirebilir (DÜZENLEME YETKİSİ YOKTUR) */}
                     <button
                       onClick={() => handleAltKatComplete(item.id)}
                       className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
@@ -459,59 +585,176 @@ export default function RaporGirisiPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* 3. SON GİRİLEN SAĞLIK RAPORLARI TABLOSU (ORİJİNAL TEMİZ BEYAZ TABLO) */}
+        {/* 5. GİZLİLİK KALKANI: SON GİRİLEN SAĞLIK RAPORLARI */}
+        {/* BU BÖLÜM SADECE EN ÜST YÖNETİCİYE (ADMIN) GÖRÜNÜR! MUHASEBE VE ALT KAT GÖREMEZ */}
         {/* ========================================================================= */}
-        <div className="rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <h3 className="text-base font-bold text-slate-900">Son Girilen Sağlık Raporları</h3>
-            <span className="text-xs text-slate-500 font-medium">Toplam {sonRaporlar.length} Kayıt</span>
-          </div>
+        {userRole === "admin" && (
+          <div className="rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-sm space-y-4 animate-in fade-in">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-amber-600 tracking-wider">Yönetici Özel Arşivi</span>
+                <h3 className="text-base font-bold text-slate-900">Son Girilen Sağlık Raporları</h3>
+              </div>
+              <span className="text-xs text-slate-500 font-medium">Toplam {sonKesinlesenRaporlar.length} Kayıt</span>
+            </div>
 
-          {sonRaporlar.length === 0 ? (
-            <div className="py-8 text-center text-xs text-slate-400">
-              Henüz tamamlanmış bir sağlık raporu kaydı bulunmuyor.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-100 text-slate-400 uppercase font-bold text-[11px]">
-                    <th className="py-3 px-3">Tarih</th>
-                    <th className="py-3 px-3">Kişi</th>
-                    <th className="py-3 px-3">Firma</th>
-                    <th className="py-3 px-3">Ödeme</th>
-                    <th className="py-3 px-3 text-right">Tutar</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                  {sonRaporlar.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/70 transition">
-                      <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
-                        {new Date(r.report_date).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" })}{" "}
-                        {new Date(r.report_date).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
-                      </td>
-                      <td className="py-3 px-3">
-                        <div className="font-bold text-slate-900">{r.patient_name}</div>
-                        <div className="text-[11px] text-slate-400 font-mono">{r.tc_no}</div>
-                      </td>
-                      <td className="py-3 px-3 text-slate-600">{r.company_name}</td>
-                      <td className="py-3 px-3 uppercase font-bold text-[11px] text-slate-800">
-                        {r.payment_method === "nakit" && "NAKİT"}
-                        {r.payment_method === "pos" && "POS"}
-                        {r.payment_method === "cari" && "CARİ"}
-                      </td>
-                      <td className="py-3 px-3 text-right font-black text-slate-900">
-                        ₺{Number(r.amount).toLocaleString("tr-TR")}
-                      </td>
+            {sonKesinlesenRaporlar.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">
+                Henüz kesinleşmiş bir sağlık raporu kaydı bulunmuyor.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 uppercase font-bold text-[11px]">
+                      <th className="py-3 px-3">Tarih</th>
+                      <th className="py-3 px-3">Kişi</th>
+                      <th className="py-3 px-3">Firma</th>
+                      <th className="py-3 px-3">Ödeme</th>
+                      <th className="py-3 px-3 text-right">Tutar</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                    {sonKesinlesenRaporlar.map((r) => (
+                      <tr key={r.id} className="hover:bg-slate-50/70 transition">
+                        <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
+                          {new Date(r.report_date).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" })}{" "}
+                          {new Date(r.report_date).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-slate-900">{r.patient_name}</div>
+                          <div className="text-[11px] text-slate-400 font-mono">{r.tc_no}</div>
+                        </td>
+                        <td className="py-3 px-3 text-slate-600">{r.company_name}</td>
+                        <td className="py-3 px-3 uppercase font-bold text-[11px] text-slate-800">
+                          {r.payment_method === "nakit" && "NAKİT"}
+                          {r.payment_method === "pos" && "POS"}
+                          {r.payment_method === "cari" && "CARİ"}
+                        </td>
+                        <td className="py-3 px-3 text-right font-black text-slate-900">
+                          ₺{Number(r.amount).toLocaleString("tr-TR")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
+
+      {/* ========================================================================= */}
+      {/* MUHASEBE İÇİN CANLI DÜZENLEME MODAL PENCERESİ */}
+      {/* ========================================================================= */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-slate-200 animate-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Edit2 className="h-4 w-4 text-[#d84315]" />
+                <span>Hasta Bilgilerini Düzenle</span>
+              </h3>
+              <button
+                onClick={() => setEditingItem(null)}
+                className="p-1 rounded-xl text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Ad Soyad</label>
+                <input
+                  type="text"
+                  required
+                  value={editPatientName}
+                  onChange={(e) => setEditPatientName(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 font-bold text-slate-800 focus:border-[#d84315] focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">T.C. Kimlik No</label>
+                  <input
+                    type="text"
+                    maxLength={11}
+                    required
+                    value={editTcNo}
+                    onChange={(e) => setEditTcNo(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono font-bold text-slate-800 focus:border-[#d84315] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Firma / Çalışacağı Yer</label>
+                  <input
+                    type="text"
+                    required
+                    value={editCompanyName}
+                    onChange={(e) => setEditCompanyName(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 font-bold text-slate-800 focus:border-[#d84315] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Ödeme Türü</label>
+                  <select
+                    value={editPaymentMethod}
+                    onChange={(e) => setEditPaymentMethod(e.target.value as any)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 font-bold text-slate-800 focus:border-[#d84315] focus:outline-none"
+                  >
+                    <option value="nakit">Nakit</option>
+                    <option value="pos">POS / Kredi Kartı</option>
+                    <option value="cari">Cari</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Tutar (TL)</label>
+                  <input
+                    type="number"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 font-bold text-slate-800 focus:border-[#d84315] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Ek Not</label>
+                <input
+                  type="text"
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-800 focus:border-[#d84315] focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 cursor-pointer"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-[#d84315] hover:bg-[#bf360c] text-white font-bold transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Save className="h-4 w-4" />
+                  <span>Değişiklikleri Kaydet</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
