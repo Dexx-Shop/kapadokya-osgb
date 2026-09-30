@@ -30,7 +30,8 @@ import {
   TrendingUp, 
   Calendar,
   Loader2,
-  Heart
+  Heart,
+  ChevronDown
 } from "lucide-react";
 
 interface ReportItem {
@@ -48,6 +49,21 @@ interface ReportItem {
 
 type PeriodType = "bugun" | "haftalik" | "aylik" | "tum";
 
+const MONTHS = [
+  { value: 0, label: "Ocak" },
+  { value: 1, label: "Şubat" },
+  { value: 2, label: "Mart" },
+  { value: 3, label: "Nisan" },
+  { value: 4, label: "Mayıs" },
+  { value: 5, label: "Haziran" },
+  { value: 6, label: "Temmuz" },
+  { value: 7, label: "Ağustos" },
+  { value: 8, label: "Eylül" },
+  { value: 9, label: "Ekim" },
+  { value: 10, label: "Kasım" },
+  { value: 11, label: "Aralık" },
+];
+
 export default function ExecutiveSuitePage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +72,11 @@ export default function ExecutiveSuitePage() {
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodType>("bugun");
+
+  // Ay ve Yıl Seçimi State'leri (Varsayılan olarak şu anki ay ve yıl)
+  const currentNow = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<number>(currentNow.getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(currentNow.getFullYear());
 
   // Babanın KDV & Tevkifat Hesaplayıcısı
   const [calcAmount, setCalcAmount] = useState<string>("");
@@ -105,7 +126,7 @@ export default function ExecutiveSuitePage() {
     setReportsLoading(false);
   }
 
-  // Türkiye Takvimine Göre Zaman Filtreleme Sınırları (Pazartesi Esaslı)
+  // Türkiye Takvimine Göre Zaman Filtreleme Sınırları
   const filteredReports = useMemo(() => {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
@@ -113,16 +134,18 @@ export default function ExecutiveSuitePage() {
     const dayOfWeek = now.getDay();
     const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday, 0, 0, 0, 0);
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 
     return reports.filter((r) => {
       const itemDate = new Date(r.report_date);
-      if (period === "bugun" && itemDate < startOfToday) return false;
-      if (period === "haftalik" && itemDate < startOfWeek) return false;
-      if (period === "aylik" && itemDate < startOfMonth) return false;
-      return true;
+      if (period === "bugun") return itemDate >= startOfToday;
+      if (period === "haftalik") return itemDate >= startOfWeek;
+      if (period === "aylik") {
+        // Seçilen Ay ve Yıla göre tam filtreleme (0 = Ocak, 11 = Aralık)
+        return itemDate.getMonth() === selectedMonth && itemDate.getFullYear() === selectedYear;
+      }
+      return true; // "tum"
     });
-  }, [reports, period]);
+  }, [reports, period, selectedMonth, selectedYear]);
 
   // Kasa Toplamları
   const totalAmount = filteredReports.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
@@ -152,6 +175,16 @@ export default function ExecutiveSuitePage() {
     setWaterCount(next);
     localStorage.setItem("exec_suite_water", next.toString());
   }
+
+  // Raporların olduğu mevcut yılları dinamik bul
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    years.add(new Date().getFullYear());
+    reports.forEach((r) => {
+      years.add(new Date(r.report_date).getFullYear());
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [reports]);
 
   if (loading) {
     return (
@@ -218,20 +251,15 @@ export default function ExecutiveSuitePage() {
             
             {/* NESLİHAN ULU PRESTİJ HERO BANNER */}
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-purple-950/70 via-[#140f24] to-[#0c0916] border border-rose-500/30 p-8 sm:p-12 shadow-2xl backdrop-blur-2xl">
-              
-              {/* Arka Plan Glow Hüzmeleri */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-gradient-to-b from-rose-500/20 via-purple-500/10 to-transparent blur-3xl pointer-events-none rounded-full" />
               <div className="absolute -bottom-10 right-10 w-60 h-60 bg-rose-600/10 blur-2xl pointer-events-none rounded-full" />
 
               <div className="relative z-10 flex flex-col items-center text-center space-y-6 max-w-4xl mx-auto">
-                
-                {/* Üst Rozet */}
                 <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-rose-500/20 to-purple-500/20 px-5 py-1.5 text-xs font-black text-rose-300 border border-rose-500/40 shadow-sm backdrop-blur-md">
                   <Flower2 className="h-4 w-4 text-rose-400 animate-pulse" />
                   <span className="tracking-wider uppercase">Kapadokya OSGB • Kurucu Ortak & Yönetici</span>
                 </div>
 
-                {/* NESLİHAN ULU LOGOSU */}
                 <div className="relative py-2 transition-transform duration-300 hover:scale-[1.02]">
                   <Image
                     src="/neslihanlogo.png"
@@ -243,12 +271,10 @@ export default function ExecutiveSuitePage() {
                   />
                 </div>
 
-                {/* Açıklama */}
                 <p className="text-xs sm:text-sm text-slate-300 max-w-2xl font-medium leading-relaxed">
                   Şirketinizin anlık sağlık raporu akışı, kasa gelirleri, zihin tazeleyici nefes modülü ve kişisel takip alanınız.
                 </p>
 
-                {/* Durum & Bilgi Çubuğu */}
                 <div className="pt-2 flex flex-wrap items-center justify-center gap-4 text-xs">
                   <div className="inline-flex items-center gap-2 rounded-2xl bg-white/[0.05] border border-white/10 px-4 py-2 backdrop-blur-md text-slate-300">
                     <Clock className="h-3.5 w-3.5 text-rose-400" />
@@ -259,17 +285,14 @@ export default function ExecutiveSuitePage() {
                     <span>Yönetici Odası Aktif</span>
                   </div>
                 </div>
-
               </div>
             </div>
 
-            {/* ALT ÇALIŞMA ALANI: SOLDA NEFES & SU TAKİBİ, SAĞDA CANLI SAĞLIK RAPORLARI & KASA */}
+            {/* ALT ÇALIŞMA ALANI */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               
-              {/* Sol Kolon: FARKINDALIK & SAĞLIK TAKİBİ (lg:col-span-5) */}
+              {/* Sol Kolon: FARKINDALIK & SAĞLIK TAKİBİ */}
               <div className="lg:col-span-5 space-y-6">
-                
-                {/* 1. Kutu Nefesi Modülü */}
                 <div className="rounded-3xl bg-white/[0.03] border border-white/10 p-6 sm:p-7 backdrop-blur-md space-y-4">
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-bold text-white flex items-center gap-2">
@@ -311,7 +334,6 @@ export default function ExecutiveSuitePage() {
                   </div>
                 </div>
 
-                {/* 2. Günlük Su Takibi */}
                 <div className="rounded-3xl bg-white/[0.03] border border-white/10 p-6 backdrop-blur-md flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -328,7 +350,6 @@ export default function ExecutiveSuitePage() {
                   </button>
                 </div>
 
-                {/* 3. Günlük Olumlama */}
                 <div className="rounded-3xl bg-gradient-to-br from-rose-950/30 to-purple-950/30 border border-rose-500/20 p-5 text-xs italic text-rose-200 backdrop-blur-md">
                   <div className="flex items-center gap-2 mb-1.5 text-amber-300 font-bold not-italic">
                     <Heart className="h-4 w-4 text-rose-400" />
@@ -336,10 +357,9 @@ export default function ExecutiveSuitePage() {
                   </div>
                   &ldquo;Düşüncelerin sakinleştiğinde, her karmaşanın arkasındaki berrak çözümü görürsün. Bugün senin günün.&rdquo;
                 </div>
-
               </div>
 
-              {/* Sağ Kolon: SAĞLIK RAPORLARI & KASA LOGLARI MODÜLÜ (lg:col-span-7) */}
+              {/* Sağ Kolon: SAĞLIK RAPORLARI & KASA LOGLARI MODÜLÜ */}
               <div className="lg:col-span-7 rounded-3xl bg-white/[0.03] border border-white/10 p-6 sm:p-7 backdrop-blur-md space-y-5">
                 
                 {/* Başlık ve Dönem Filtre Butonları */}
@@ -354,7 +374,7 @@ export default function ExecutiveSuitePage() {
                     </p>
                   </div>
 
-                  {/* Dönem Seçimi */}
+                  {/* Dönem Butonları */}
                   <div className="inline-flex items-center p-1 rounded-2xl bg-white/5 border border-white/10 gap-1 flex-wrap shrink-0">
                     <button
                       onClick={() => setPeriod("bugun")}
@@ -405,6 +425,52 @@ export default function ExecutiveSuitePage() {
                     </button>
                   </div>
                 </div>
+
+                {/* AYLIK SEÇİLDİĞİNDE BELİREN ÖZEL AY VE YIL AÇILIR LİSTELERİ */}
+                {period === "aylik" && (
+                  <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-2xl bg-white/[0.04] border border-rose-500/20 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <span className="text-xs font-bold text-rose-300 flex items-center gap-1.5 mr-1">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      <span>İncelenecek Ay:</span>
+                    </span>
+
+                    {/* Ay Seçimi */}
+                    <div className="relative">
+                      <select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                        className="appearance-none rounded-xl bg-slate-900 border border-white/15 px-3 py-1.5 pr-8 text-xs font-bold text-white focus:border-rose-400 focus:outline-none cursor-pointer"
+                      >
+                        {MONTHS.map((m) => (
+                          <option key={m.value} value={m.value} className="bg-slate-900 text-white">
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
+                    {/* Yıl Seçimi */}
+                    <div className="relative">
+                      <select
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        className="appearance-none rounded-xl bg-slate-900 border border-white/15 px-3 py-1.5 pr-8 text-xs font-bold text-white focus:border-rose-400 focus:outline-none cursor-pointer"
+                      >
+                        {availableYears.map((yr) => (
+                          <option key={yr} value={yr} className="bg-slate-900 text-white">
+                            {yr}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
+                    <span className="text-[11px] text-slate-400 ml-auto font-medium">
+                      {MONTHS[selectedMonth].label} {selectedYear} dönemi verileri listeleniyor
+                    </span>
+                  </div>
+                )}
 
                 {/* KASA ÖZETİ KARTLARI */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -463,7 +529,9 @@ export default function ExecutiveSuitePage() {
                     </div>
                   ) : filteredReports.length === 0 ? (
                     <div className="text-center py-12 text-slate-500 text-xs border border-white/5 rounded-2xl bg-white/[0.01]">
-                      Bu zaman diliminde girilmiş bir sağlık raporu kaydı bulunmuyor.
+                      {period === "aylik" 
+                        ? `${MONTHS[selectedMonth].label} ${selectedYear} ayında girilmiş bir sağlık raporu kaydı bulunmuyor.`
+                        : "Bu zaman diliminde girilmiş bir sağlık raporu kaydı bulunmuyor."}
                     </div>
                   ) : (
                     <div className="overflow-x-auto max-h-[360px] overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.01]">
@@ -536,18 +604,15 @@ export default function ExecutiveSuitePage() {
             
             {/* DR. SALİM ULU PRESTİJ HERO BANNER */}
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-slate-900/95 via-[#0e1420] to-[#070a0f] border border-amber-500/30 p-8 sm:p-12 shadow-2xl backdrop-blur-2xl">
-              
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-gradient-to-b from-amber-500/20 via-orange-500/5 to-transparent blur-3xl pointer-events-none rounded-full" />
               <div className="absolute -bottom-10 right-10 w-60 h-60 bg-amber-600/10 blur-2xl pointer-events-none rounded-full" />
 
               <div className="relative z-10 flex flex-col items-center text-center space-y-6 max-w-4xl mx-auto">
-                
                 <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-5 py-1.5 text-xs font-black text-amber-300 border border-amber-500/40 shadow-sm backdrop-blur-md">
                   <Stethoscope className="h-4 w-4 text-amber-400 animate-pulse" />
                   <span className="tracking-wider uppercase">Kapadokya OSGB • Kurucu Hekim & Şirket Sahibi</span>
                 </div>
 
-                {/* DR. SALIM ULU LOGO */}
                 <div className="relative py-2 transition-transform duration-300 hover:scale-[1.02]">
                   <Image
                     src="/drsalimlogo.png"
@@ -573,7 +638,6 @@ export default function ExecutiveSuitePage() {
                     <span>Yönetim Sistemi Çevrimiçi</span>
                   </div>
                 </div>
-
               </div>
             </div>
 
@@ -588,7 +652,6 @@ export default function ExecutiveSuitePage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                
                 <a
                   href="https://ekapv2.kik.gov.tr/"
                   target="_blank"
@@ -696,7 +759,6 @@ export default function ExecutiveSuitePage() {
                     Sözleşmelere Git →
                   </span>
                 </a>
-
               </div>
             </div>
 
@@ -705,7 +767,6 @@ export default function ExecutiveSuitePage() {
               
               {/* Sol Kolon: HESAPLAYICILAR */}
               <div className="lg:col-span-5 space-y-6">
-                
                 <div className="rounded-3xl bg-white/[0.03] border border-white/10 p-6 backdrop-blur-md space-y-4">
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-bold text-white flex items-center gap-2">
@@ -827,7 +888,6 @@ export default function ExecutiveSuitePage() {
                     </div>
                   )}
                 </div>
-
               </div>
 
               {/* Sağ Kolon: SAĞLIK RAPORLARI LOGLARI */}
@@ -895,6 +955,53 @@ export default function ExecutiveSuitePage() {
                   </div>
                 </div>
 
+                {/* AYLIK SEÇİLDİĞİNDE BELİREN ÖZEL AY VE YIL AÇILIR LİSTELERİ */}
+                {period === "aylik" && (
+                  <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-2xl bg-white/[0.04] border border-amber-500/20 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5 mr-1">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      <span>İncelenecek Ay:</span>
+                    </span>
+
+                    {/* Ay Seçimi */}
+                    <div className="relative">
+                      <select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                        className="appearance-none rounded-xl bg-slate-900 border border-white/15 px-3 py-1.5 pr-8 text-xs font-bold text-white focus:border-amber-400 focus:outline-none cursor-pointer"
+                      >
+                        {MONTHS.map((m) => (
+                          <option key={m.value} value={m.value} className="bg-slate-900 text-white">
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
+                    {/* Yıl Seçimi */}
+                    <div className="relative">
+                      <select
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        className="appearance-none rounded-xl bg-slate-900 border border-white/15 px-3 py-1.5 pr-8 text-xs font-bold text-white focus:border-amber-400 focus:outline-none cursor-pointer"
+                      >
+                        {availableYears.map((yr) => (
+                          <option key={yr} value={yr} className="bg-slate-900 text-white">
+                            {yr}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
+                    <span className="text-[11px] text-slate-400 ml-auto font-medium">
+                      {MONTHS[selectedMonth].label} {selectedYear} dönemi verileri listeleniyor
+                    </span>
+                  </div>
+                )}
+
+                {/* KASA ÖZETİ KARTLARI */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3.5">
                     <span className="text-[10px] uppercase font-bold text-amber-300 block">
@@ -933,6 +1040,7 @@ export default function ExecutiveSuitePage() {
                   </div>
                 </div>
 
+                {/* RAPORLAR LİSTESİ TABLOSU */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs text-slate-400 font-medium px-1">
                     <span>Kayıtlar ({filteredReports.length} Kişi)</span>
@@ -950,7 +1058,9 @@ export default function ExecutiveSuitePage() {
                     </div>
                   ) : filteredReports.length === 0 ? (
                     <div className="text-center py-12 text-slate-500 text-xs border border-white/5 rounded-2xl bg-white/[0.01]">
-                      Bu zaman diliminde girilmiş bir sağlık raporu kaydı bulunmuyor.
+                      {period === "aylik" 
+                        ? `${MONTHS[selectedMonth].label} ${selectedYear} ayında girilmiş bir sağlık raporu kaydı bulunmuyor.`
+                        : "Bu zaman diliminde girilmiş bir sağlık raporu kaydı bulunmuyor."}
                     </div>
                   ) : (
                     <div className="overflow-x-auto max-h-[360px] overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.01]">
