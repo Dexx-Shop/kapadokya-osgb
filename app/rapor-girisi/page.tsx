@@ -588,7 +588,7 @@ export default function RaporGirisiPage() {
         {/* 5. GİZLİLİK KALKANI: SON GİRİLEN SAĞLIK RAPORLARI */}
         {/* BU BÖLÜM SADECE EN ÜST YÖNETİCİYE (ADMIN) GÖRÜNÜR! MUHASEBE VE ALT KAT GÖREMEZ */}
         {/* ========================================================================= */}
-        {userRole === "admin" && (
+        {/* {userRole === "admin" && (
           <div className="rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-sm space-y-4 animate-in fade-in">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
@@ -641,7 +641,7 @@ export default function RaporGirisiPage() {
               </div>
             )}
           </div>
-        )}
+        )} */}
 
       </div>
 
