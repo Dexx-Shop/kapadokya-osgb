@@ -18,6 +18,7 @@ import {
   FileText,
   FileSpreadsheet,
   Loader2,
+  Building2,
   Sparkles
 } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
@@ -97,6 +98,12 @@ export default function AdminLayout({
       badge: "Muhasebe/Kasa"
     },
     {
+    name: "Anlaşmalı Firmalar",
+    href: "/admin/firmalar",
+    icon: Building2,
+    badge: "Fiyat & Test"
+    },
+    {
       name: "Personel & Yetki Yönetimi",
       href: "/admin/personel",
       icon: Users,
@@ -115,6 +122,7 @@ export default function AdminLayout({
       badge: "Yakında",
       disabled: true
     },
+    
   ];
 
   return (
