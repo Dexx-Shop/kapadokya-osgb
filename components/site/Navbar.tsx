@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { isSuperAdminEmail, MOTHER_EMAIL } from "@/lib/constants";
+import { isSuperAdminEmail } from "@/lib/constants";
 import { 
   ChevronDown, 
   Menu, 
@@ -13,13 +13,7 @@ import {
   UserPlus, 
   LogOut, 
   UserCheck, 
-  ShieldAlert,
-  FileSpreadsheet,
-  Briefcase,
-  Flower2,
-  LayoutDashboard,
-  Stethoscope,
-  Calculator
+  ShieldAlert
 } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
@@ -39,7 +33,6 @@ export default function Navbar() {
   const [mobileIkOpen, setMobileIkOpen] = useState(false);
   const [servicesDropdown, setServicesDropdown] = useState(false);
   const [ikDropdown, setIkDropdown] = useState(false);
-  const [adminDropdown, setAdminDropdown] = useState(false);
   const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [staffRole, setStaffRole] = useState<string | null>(null);
@@ -109,10 +102,6 @@ export default function Navbar() {
     }
     return pathname.startsWith(path);
   };
-
-  const isMother = currentUser?.email?.toLowerCase() === MOTHER_EMAIL.toLowerCase();
-  const isAltKat = staffRole === "alt_kat";
-  const isMuhasebe = staffRole === "muhasebe";
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 w-full border-b border-white/20 bg-white/20 backdrop-blur-md transition-all">
@@ -262,79 +251,19 @@ export default function Navbar() {
         {/* SAĞ TARAF BUTONLAR */}
         <div className="flex items-center gap-2.5">
           
-          {/* YÖNETİM AÇILIR MENÜSÜ (ROL VE YETKİYE GÖRE AYARLANDI) */}
+          {/* PERSONEL BUTONU (HOVER YOK - DOĞRUDAN TIKLAYINCA /paneller SAYFASINA GİDER) */}
           {(isAdmin || staffRole) && (
-            <div 
-              className="relative hidden sm:block"
-              onMouseEnter={() => setAdminDropdown(true)}
-              onMouseLeave={() => setAdminDropdown(false)}
+            <Link
+              href="/paneller"
+              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-black transition border shadow-sm cursor-pointer active:scale-95 ${
+                pathname === "/paneller"
+                  ? "bg-[#d84315] text-white border-[#d84315] shadow-md shadow-[#d84315]/25"
+                  : "bg-slate-900/90 text-white border-slate-700/80 hover:bg-slate-900"
+              }`}
             >
-              <button
-                className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black transition border shadow-sm cursor-pointer ${
-                  pathname.startsWith("/admin") || pathname === "/yonetici-odasi" || pathname.startsWith("/muhasebe") || pathname.startsWith("/uzman")
-                    ? "bg-[#d84315] text-white border-[#d84315] shadow-md shadow-[#d84315]/25"
-                    : "bg-slate-900/90 text-white border-slate-700/80 hover:bg-slate-900"
-                }`}
-              >
-                <ShieldAlert className="h-3.5 w-3.5 text-amber-400" />
-                <span>Yönetim</span>
-                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${adminDropdown ? "rotate-180" : ""}`} />
-              </button>
-
-              {adminDropdown && (
-                <div className="absolute right-0 top-full pt-2 w-60 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="rounded-2xl border border-slate-200/80 bg-white/95 p-2 shadow-2xl backdrop-blur-2xl">
-                    <div className="px-3 py-1.5 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                      Yetkili Paneller
-                    </div>
-
-                    {/* 1. ÜST YÖNETİM PANELİ (Sadece Admin / Salim & Neslihan & Eymen) */}
-                    {isAdmin && (
-                      <Link
-                        href="/yonetici-odasi"
-                        className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-800 hover:text-[#d84315] hover:bg-slate-50 rounded-xl transition"
-                      >
-                        {isMother ? <Flower2 className="h-4 w-4 text-rose-500" /> : <Briefcase className="h-4 w-4 text-amber-500" />}
-                        <span>Üst Yönetim Paneli</span>
-                      </Link>
-                    )}
-
-                    {/* 2. MÜDÜR PANELİ (Sadece Admin) */}
-                    {isAdmin && (
-                      <Link
-                        href="/admin/rapor-kayitlari"
-                        className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-800 hover:text-[#d84315] hover:bg-slate-50 rounded-xl transition"
-                      >
-                        <LayoutDashboard className="h-4 w-4 text-slate-600" />
-                        <span>Müdür Paneli</span>
-                      </Link>
-                    )}
-
-                    {/* 3. MUHASEBE PANELİ (Admin ve Muhasebe Yetkilileri Görür) */}
-                    {(isAdmin || isMuhasebe) && (
-                      <Link
-                        href="/muhasebe"
-                        className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-800 hover:text-emerald-600 hover:bg-slate-50 rounded-xl transition"
-                      >
-                        <Calculator className="h-4 w-4 text-emerald-600" />
-                        <span>Muhasebe Paneli</span>
-                      </Link>
-                    )}
-
-                    {/* 4. UZMAN PANELİ (Admin ve Alt Kat / Uzman Yetkilileri Görür) */}
-                    {(isAdmin || isAltKat) && (
-                      <Link
-                        href="/uzman"
-                        className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-800 hover:text-blue-600 hover:bg-slate-50 rounded-xl transition"
-                      >
-                        <Stethoscope className="h-4 w-4 text-blue-600" />
-                        <span>Uzman Paneli</span>
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+              <ShieldAlert className="h-3.5 w-3.5 text-amber-400" />
+              <span>Personel</span>
+            </Link>
           )}
 
           {/* KULLANICI / ÇIKIŞ ALANI */}
@@ -392,51 +321,14 @@ export default function Navbar() {
         <div className="border-b border-slate-200 bg-white/95 px-4 pb-6 pt-3 lg:hidden shadow-2xl animate-in slide-in-from-top-3 backdrop-blur-2xl">
           <div className="flex flex-col space-y-1.5">
             
-            {isAdmin && (
+            {(isAdmin || staffRole) && (
               <Link
-                href="/yonetici-odasi"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-black text-white shadow-sm ${
-                  isMother 
-                    ? "bg-gradient-to-r from-rose-600 to-purple-600 shadow-rose-500/25" 
-                    : "bg-gradient-to-r from-amber-600 to-[#d84315] shadow-amber-500/25"
-                }`}
-              >
-                {isMother ? <Flower2 className="h-4 w-4" /> : <Briefcase className="h-4 w-4" />}
-                <span>Üst Yönetim Paneli</span>
-              </Link>
-            )}
-
-            {isAdmin && (
-              <Link
-                href="/admin/rapor-kayitlari"
+                href="/paneller"
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white shadow-sm"
               >
-                <LayoutDashboard className="h-4 w-4 text-amber-400" />
-                <span>Müdür Paneli</span>
-              </Link>
-            )}
-
-            {(isAdmin || isMuhasebe) && (
-              <Link
-                href="/muhasebe"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-sm"
-              >
-                <Calculator className="h-4 w-4" />
-                <span>Muhasebe Paneli</span>
-              </Link>
-            )}
-
-            {(isAdmin || isAltKat) && (
-              <Link
-                href="/uzman"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white shadow-sm"
-              >
-                <Stethoscope className="h-4 w-4" />
-                <span>Uzman Paneli</span>
+                <ShieldAlert className="h-4 w-4 text-amber-400" />
+                <span>Personel ve Yönetim Panelleri</span>
               </Link>
             )}
 

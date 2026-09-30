@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isSuperAdminEmail } from "@/lib/constants";
@@ -17,7 +18,14 @@ import {
   X, 
   Stethoscope, 
   ChevronDown,
-  UserCheck
+  UserCheck,
+  ArrowLeft,
+  LogOut,
+  Sparkles,
+  Building2,
+  Banknote,
+  CreditCard,
+  FileText
 } from "lucide-react";
 
 interface Company {
@@ -123,7 +131,7 @@ export default function MuhasebePanelPage() {
   // Realtime Dinleme
   useEffect(() => {
     const channel = supabase
-      .channel("muhasebe_live_channel")
+      .channel("muhasebe_live_dark_channel")
       .on("postgres_changes", { event: "*", schema: "public", table: "health_reports" }, (payload) => {
         if (payload.eventType === "INSERT") {
           const rec = payload.new as HealthReport;
@@ -141,6 +149,11 @@ export default function MuhasebePanelPage() {
       supabase.removeChannel(channel);
     };
   }, [supabase]);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/");
+  }
 
   function handleSelectCompany(compId: string) {
     setSelectedCompanyId(compId);
@@ -257,7 +270,14 @@ export default function MuhasebePanelPage() {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-slate-50 flex items-center justify-center font-bold text-xs text-slate-500">Yükleniyor...</div>;
+    return (
+      <div className="fixed inset-0 z-[9999] bg-[#07090e] flex flex-col items-center justify-center text-white">
+        <Sparkles className="h-8 w-8 animate-spin text-emerald-400 mb-3" />
+        <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">
+          Muhasebe Konsolu Açılıyor...
+        </span>
+      </div>
+    );
   }
 
   const altKatBekleyenler = reports.filter((r) => r.status === "bekliyor");
@@ -265,28 +285,68 @@ export default function MuhasebePanelPage() {
   const selectedCompanyObj = companies.find((c) => c.id === selectedCompanyId);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 pt-24 pb-16 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <div className="fixed inset-0 z-[9999] bg-[#07090e] text-slate-100 overflow-y-auto selection:bg-emerald-500 selection:text-white">
+      
+      {/* ARKA PLAN IŞIK EFEKTLERİ */}
+      <div className="absolute top-0 left-1/3 -translate-x-1/2 w-[600px] h-[350px] bg-gradient-to-b from-emerald-500/10 via-teal-500/5 to-transparent blur-3xl pointer-events-none rounded-full" />
+      <div className="absolute bottom-10 right-10 w-80 h-80 bg-emerald-600/10 blur-[100px] pointer-events-none rounded-full" />
+
+      {/* ÜST MİNİ NAVİGASYON (GLOBAL NAVBAR TAMAMEN KALKTI) */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-black/50 border-b border-white/10 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/paneller"
+            className="flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 px-3.5 py-2 text-xs font-bold transition active:scale-95 text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Personel Portalı'na Dön</span>
+          </Link>
+          <div className="h-4 w-px bg-white/20 hidden sm:block" />
+          <span className="text-xs font-bold text-slate-400 hidden sm:inline-flex items-center gap-1.5">
+            <Calculator className="h-4 w-4 text-emerald-400" />
+            <span>Muhasebe & Müşteri Sevk Konsolu</span>
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-300 font-medium">
+            <UserCheck className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="truncate max-w-[140px]">{currentUser?.user_metadata?.full_name || currentUser?.email}</span>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            title="Oturumu Kapat"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-bold transition shadow-sm cursor-pointer active:scale-95"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Çıkış</span>
+          </button>
+        </div>
+      </header>
+
+      {/* İÇERİK MERKEZİ */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10">
         
         {/* SOL: MUHASEBE SIDEBAR */}
-        <aside className="lg:col-span-3 rounded-3xl bg-white border border-slate-200/80 p-5 shadow-sm space-y-4">
-          <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-            <div className="h-10 w-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-600/30">
-              <Calculator className="h-5 w-5" />
+        <aside className="lg:col-span-3 rounded-3xl bg-white/[0.03] border border-emerald-500/20 p-5 shadow-2xl backdrop-blur-xl space-y-4">
+          <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+            <div className="h-11 w-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center font-bold shadow-lg shadow-emerald-500/25">
+              <Calculator className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-emerald-600">Finans & Kayıt</div>
-              <h2 className="text-base font-black text-slate-900">Muhasebe Paneli</h2>
+              <div className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Finans & Kayıt</div>
+              <h2 className="text-base font-black text-white">Muhasebe Paneli</h2>
             </div>
           </div>
 
-          <nav className="space-y-1">
+          <nav className="space-y-1.5">
             <button
               onClick={() => setActiveTab("rapor_girisi")}
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition cursor-pointer ${
                 activeTab === "rapor_girisi"
-                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
-                  : "text-slate-600 hover:bg-slate-50"
+                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/25"
+                  : "text-slate-400 hover:bg-white/5 hover:text-white"
               }`}
             >
               <div className="flex items-center gap-2.5">
@@ -294,20 +354,16 @@ export default function MuhasebePanelPage() {
                 <span>Sağlık Raporu Girişi</span>
               </div>
               {muhasebeKontrolBekleyenler.length > 0 && (
-                <span className="bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full text-[10px] font-black">
+                <span className="bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full text-[10px] font-black animate-pulse">
                   {muhasebeKontrolBekleyenler.length}
                 </span>
               )}
             </button>
           </nav>
 
-          <div className="pt-4 border-t border-slate-100 text-xs text-slate-400 space-y-2">
-            <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
-              <UserCheck className="h-3.5 w-3.5 text-emerald-600" />
-              <span className="truncate">{currentUser?.user_metadata?.full_name || currentUser?.email}</span>
-            </div>
-            <p className="text-[11px] leading-relaxed">
-              Müşteri kaydını yapıp alt kata sevk edebilir, dönen müşterileri onaylayabilirsiniz.
+          <div className="pt-4 border-t border-white/10 text-xs text-slate-400 space-y-2">
+            <p className="text-[11px] leading-relaxed text-slate-400">
+              Yeni hasta sevkini açın, testleri atayın ve tetkiki bitip yukarıya gelen hastaları tek tıkla onaylayın.
             </p>
           </div>
         </aside>
@@ -317,29 +373,29 @@ export default function MuhasebePanelPage() {
           
           {/* ALT KATTAN GELEN KONTROL BEKLEYEN HASTALAR */}
           {muhasebeKontrolBekleyenler.length > 0 && (
-            <div className="rounded-3xl bg-amber-50/90 border border-amber-200 p-6 shadow-sm space-y-3 animate-in fade-in">
+            <div className="rounded-3xl bg-amber-500/10 border border-amber-500/30 p-6 shadow-xl backdrop-blur-xl space-y-3 animate-in fade-in">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <ArrowUpCircle className="h-5 w-5 text-amber-600 animate-bounce" />
-                  <h3 className="text-sm font-bold text-amber-900">
+                  <ArrowUpCircle className="h-5 w-5 text-amber-400 animate-bounce" />
+                  <h3 className="text-sm font-bold text-amber-300">
                     Alt Kattan Çıkanlar (Kontrol & Onay Bekliyor)
                   </h3>
                 </div>
-                <span className="text-xs font-bold bg-amber-200/80 text-amber-900 px-2.5 py-0.5 rounded-full">
+                <span className="text-xs font-black bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">
                   {muhasebeKontrolBekleyenler.length} Kişi
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 {muhasebeKontrolBekleyenler.map((item) => (
-                  <div key={item.id} className="p-4 rounded-2xl bg-white border border-amber-200 shadow-sm flex items-center justify-between gap-3">
+                  <div key={item.id} className="p-4 rounded-2xl bg-slate-900/80 border border-amber-500/25 shadow-md flex items-center justify-between gap-3">
                     <div className="space-y-0.5">
-                      <div className="text-sm font-bold text-slate-900">{item.patient_name}</div>
-                      <div className="text-xs text-slate-500 font-mono">{item.tc_no} • {item.company_name}</div>
-                      <div className="text-xs font-bold text-emerald-600">₺{item.amount} ({item.payment_method.toUpperCase()})</div>
+                      <div className="text-sm font-bold text-white">{item.patient_name}</div>
+                      <div className="text-xs text-slate-400 font-mono">{item.tc_no} • {item.company_name}</div>
+                      <div className="text-xs font-bold text-emerald-400">₺{item.amount} ({item.payment_method.toUpperCase()})</div>
                       {item.completed_tests && item.completed_tests.length > 0 && (
-                        <div className="text-[10px] text-slate-500 mt-1">
-                          Yapılan: {item.completed_tests.join(", ")}
+                        <div className="text-[10px] text-slate-400 mt-1">
+                          Yapılan: <span className="text-emerald-300">{item.completed_tests.join(", ")}</span>
                         </div>
                       )}
                     </div>
@@ -347,7 +403,7 @@ export default function MuhasebePanelPage() {
                     <div className="flex flex-col gap-1.5 shrink-0 items-end">
                       <button
                         onClick={() => handleMuhasebeFinalize(item.id)}
-                        className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm flex items-center gap-1 cursor-pointer active:scale-95"
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-md shadow-emerald-600/30 flex items-center gap-1 cursor-pointer active:scale-95"
                       >
                         <Check className="h-3.5 w-3.5" />
                         <span>Kontrol Edildi</span>
@@ -356,14 +412,14 @@ export default function MuhasebePanelPage() {
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => openEditModal(item)}
-                          className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition cursor-pointer text-[11px] flex items-center gap-1"
+                          className="p-1.5 rounded-lg border border-white/10 hover:bg-white/10 text-slate-300 transition cursor-pointer text-[11px] flex items-center gap-1"
                         >
                           <Edit2 className="h-3 w-3" />
                           <span>Düzenle</span>
                         </button>
                         <button
                           onClick={() => handleDelete(item.id, item.patient_name)}
-                          className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition cursor-pointer"
+                          className="p-1.5 rounded-lg border border-rose-500/30 hover:bg-rose-500/20 text-rose-400 transition cursor-pointer"
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -376,11 +432,11 @@ export default function MuhasebePanelPage() {
           )}
 
           {/* HASTA KAYIT FORMU */}
-          <div className="rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-sm space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div className="rounded-3xl bg-white/[0.03] border border-white/10 p-6 sm:p-8 shadow-2xl backdrop-blur-xl space-y-6">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-2">
-                <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
-                <h2 className="text-base font-bold text-slate-900">Yeni Hasta / Müşteri Kaydı Aç</h2>
+                <FileSpreadsheet className="h-5 w-5 text-emerald-400" />
+                <h2 className="text-base font-bold text-white">Yeni Hasta / Müşteri Kaydı Aç</h2>
               </div>
               <span className="text-xs text-slate-400 font-mono">{reportDate}</span>
             </div>
@@ -388,8 +444,8 @@ export default function MuhasebePanelPage() {
             {message && (
               <div className={`p-3.5 rounded-2xl text-xs font-bold border ${
                 message.type === "success" 
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-800" 
-                  : "bg-rose-50 border-rose-200 text-rose-800"
+                  ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300" 
+                  : "bg-rose-500/20 border-rose-500/40 text-rose-300"
               }`}>
                 {message.text}
               </div>
@@ -398,19 +454,19 @@ export default function MuhasebePanelPage() {
             <form onSubmit={handleSendToAltKat} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Kişinin Adı Soyadı *</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">Kişinin Adı Soyadı *</label>
                   <input
                     type="text"
                     required
                     value={patientName}
                     onChange={(e) => setPatientName(e.target.value)}
                     placeholder="Örn: Ahmet Yılmaz"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-600 focus:outline-none transition shadow-sm"
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-emerald-400 focus:outline-none transition shadow-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">T.C. Kimlik No *</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">T.C. Kimlik No *</label>
                   <input
                     type="text"
                     maxLength={11}
@@ -418,17 +474,17 @@ export default function MuhasebePanelPage() {
                     value={tcNo}
                     onChange={(e) => setTcNo(e.target.value)}
                     placeholder="11 haneli kimlik no"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-mono text-slate-800 placeholder-slate-400 focus:border-emerald-600 focus:outline-none transition shadow-sm"
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-xs font-mono text-white placeholder-slate-500 focus:border-emerald-400 focus:outline-none transition shadow-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Çalışacağı Firma / Yer *</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">Çalışacağı Firma / Yer *</label>
                   <div className="relative">
                     <select
                       value={selectedCompanyId}
                       onChange={(e) => handleSelectCompany(e.target.value)}
-                      className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-emerald-600 focus:outline-none transition shadow-sm cursor-pointer pr-8"
+                      className="w-full appearance-none rounded-xl border border-white/15 bg-slate-900 px-3.5 py-2.5 text-xs font-bold text-white focus:border-emerald-400 focus:outline-none transition shadow-sm cursor-pointer pr-8"
                     >
                       <option value="">-- Firma Seçiniz --</option>
                       {companies.map((c) => (
@@ -448,27 +504,27 @@ export default function MuhasebePanelPage() {
                       placeholder="Firma / İşyeri Adını Yazınız"
                       value={customCompanyName}
                       onChange={(e) => setCustomCompanyName(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 focus:border-emerald-600 focus:outline-none"
+                      className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-3.5 py-2 text-xs text-white focus:border-emerald-400 focus:outline-none"
                     />
                   )}
                 </div>
               </div>
 
               {selectedCompanyObj && (
-                <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-in fade-in">
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-in fade-in">
                   <div className="flex items-center gap-2">
-                    <Stethoscope className="h-4 w-4 text-amber-700 shrink-0" />
+                    <Stethoscope className="h-4 w-4 text-amber-400 shrink-0" />
                     <div>
-                      <span className="font-bold text-amber-950">İstenen Tetkikler: </span>
-                      <span className="text-amber-900 font-medium">
+                      <span className="font-bold text-amber-300">İstenen Tetkikler: </span>
+                      <span className="text-slate-200 font-medium">
                         {selectedCompanyObj.tests?.length ? selectedCompanyObj.tests.join(" • ") : "Standart Tetkikler"}
                       </span>
                     </div>
                   </div>
                   {selectedCompanyObj.recommended_price > 0 && (
                     <div className="text-right shrink-0">
-                      <span className="text-slate-500">Tavsiye Edilen: </span>
-                      <strong className="text-emerald-700 font-black text-sm">₺{selectedCompanyObj.recommended_price}</strong>
+                      <span className="text-slate-400">Tavsiye Edilen: </span>
+                      <strong className="text-emerald-400 font-black text-sm">₺{selectedCompanyObj.recommended_price}</strong>
                     </div>
                   )}
                 </div>
@@ -476,11 +532,11 @@ export default function MuhasebePanelPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Ödeme Alınma Biçimi *</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">Ödeme Alınma Biçimi *</label>
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value as any)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-emerald-600 focus:outline-none transition shadow-sm"
+                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3.5 py-2.5 text-xs font-bold text-white focus:border-emerald-400 focus:outline-none transition shadow-sm"
                   >
                     <option value="nakit">💵 Nakit</option>
                     <option value="pos">💳 POS / Kredi Kartı</option>
@@ -489,25 +545,25 @@ export default function MuhasebePanelPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Tahsil Edilecek Tutar (TL)</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">Tahsil Edilecek Tutar (TL)</label>
                   <input
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 placeholder-slate-400 focus:border-emerald-600 focus:outline-none transition shadow-sm"
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white placeholder-slate-500 focus:border-emerald-400 focus:outline-none transition shadow-sm"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Ek Not (Varsa)</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">Ek Not (Varsa)</label>
                 <input
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Örn: Fatura istendi, tahlil sonuçları teslim edildi vb."
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-600 focus:outline-none transition shadow-sm"
+                  className="w-full rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-emerald-400 focus:outline-none transition shadow-sm"
                 />
               </div>
 
@@ -515,15 +571,15 @@ export default function MuhasebePanelPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-600/25 transition active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   <Send className="h-4 w-4" />
                   <span>{submitting ? "Gönderiliyor..." : "Kaydet ve Alt Kata Sevk Et"}</span>
                 </button>
 
                 {altKatBekleyenler.length > 0 && (
-                  <span className="text-xs text-slate-500">
-                    Alt katta sırada bekleyen: <strong className="text-blue-600">{altKatBekleyenler.length} kişi</strong>
+                  <span className="text-xs text-slate-400">
+                    Alt katta sırada bekleyen: <strong className="text-emerald-400">{altKatBekleyenler.length} kişi</strong>
                   </span>
                 )}
               </div>
@@ -531,40 +587,40 @@ export default function MuhasebePanelPage() {
           </div>
 
           {/* ALT KATTA SIRASI DEVAM EDENLER */}
-          <div className="rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <Clock className="h-4 w-4 text-blue-600" />
+          <div className="rounded-3xl bg-white/[0.03] border border-white/10 p-6 sm:p-8 shadow-2xl backdrop-blur-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Clock className="h-4 w-4 text-emerald-400" />
                 <span>Alt Katta Tetkiki Devam Eden Hastalar ({altKatBekleyenler.length})</span>
               </h3>
               <span className="text-[11px] text-slate-400">(Hatalı girişleri buradan düzeltebilirsiniz)</span>
             </div>
 
             {altKatBekleyenler.length === 0 ? (
-              <div className="py-4 text-center text-xs text-slate-400 italic">
+              <div className="py-6 text-center text-xs text-slate-500 italic">
                 Alt katta şu anda sırada bekleyen hasta yok.
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-white/5">
                 {altKatBekleyenler.map((item) => (
                   <div key={item.id} className="py-3 flex items-center justify-between gap-4">
                     <div>
-                      <div className="text-xs font-bold text-slate-900">{item.patient_name}</div>
-                      <div className="text-[11px] text-slate-500 font-mono">{item.tc_no} • {item.company_name}</div>
-                      <div className="text-[11px] text-slate-600 font-medium">₺{item.amount} • {item.payment_method.toUpperCase()}</div>
+                      <div className="text-xs font-bold text-white">{item.patient_name}</div>
+                      <div className="text-[11px] text-slate-400 font-mono">{item.tc_no} • {item.company_name}</div>
+                      <div className="text-[11px] text-emerald-400 font-medium">₺{item.amount} • {item.payment_method.toUpperCase()}</div>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => openEditModal(item)}
-                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-medium transition cursor-pointer flex items-center gap-1"
+                        className="px-2.5 py-1.5 rounded-lg border border-white/10 hover:bg-white/10 text-slate-300 text-xs font-medium transition cursor-pointer flex items-center gap-1"
                       >
                         <Edit2 className="h-3 w-3" />
                         <span>Düzenle</span>
                       </button>
                       <button
                         onClick={() => handleDelete(item.id, item.patient_name)}
-                        className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition cursor-pointer"
+                        className="p-1.5 rounded-lg border border-rose-500/30 hover:bg-rose-500/20 text-rose-400 transition cursor-pointer"
                         title="Sil"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -581,61 +637,61 @@ export default function MuhasebePanelPage() {
 
       {/* DÜZENLEME MODAL */}
       {editingItem && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-slate-200 animate-in zoom-in-95 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Edit2 className="h-4 w-4 text-emerald-600" />
+        <div className="fixed inset-0 z-[10000] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0e131f] rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-white/15 animate-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Edit2 className="h-4 w-4 text-emerald-400" />
                 <span>Hasta Bilgilerini Düzenle</span>
               </h3>
-              <button onClick={() => setEditingItem(null)} className="p-1 rounded-xl text-slate-400 hover:text-slate-700">
+              <button onClick={() => setEditingItem(null)} className="p-1 rounded-xl text-slate-400 hover:text-white">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveEdit} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Ad Soyad</label>
+                <label className="block font-bold text-slate-300 mb-1">Ad Soyad</label>
                 <input
                   type="text"
                   required
                   value={editPatientName}
                   onChange={(e) => setEditPatientName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 font-bold text-slate-800 focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 font-bold text-white focus:border-emerald-400 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">T.C. Kimlik No</label>
+                  <label className="block font-bold text-slate-300 mb-1">T.C. Kimlik No</label>
                   <input
                     type="text"
                     maxLength={11}
                     required
                     value={editTcNo}
                     onChange={(e) => setEditTcNo(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono font-bold text-slate-800 focus:border-emerald-600 focus:outline-none"
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 font-mono font-bold text-white focus:border-emerald-400 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Firma / Çalışacağı Yer</label>
+                  <label className="block font-bold text-slate-300 mb-1">Firma / Çalışacağı Yer</label>
                   <input
                     type="text"
                     required
                     value={editCompanyName}
                     onChange={(e) => setEditCompanyName(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 font-bold text-slate-800 focus:border-emerald-600 focus:outline-none"
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 font-bold text-white focus:border-emerald-400 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Ödeme Türü</label>
+                  <label className="block font-bold text-slate-300 mb-1">Ödeme Türü</label>
                   <select
                     value={editPaymentMethod}
                     onChange={(e) => setEditPaymentMethod(e.target.value as any)}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 font-bold text-slate-800 focus:border-emerald-600 focus:outline-none"
+                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 font-bold text-white focus:border-emerald-400 focus:outline-none"
                   >
                     <option value="nakit">Nakit</option>
                     <option value="pos">POS / Kredi Kartı</option>
@@ -643,23 +699,23 @@ export default function MuhasebePanelPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Tutar (TL)</label>
+                  <label className="block font-bold text-slate-300 mb-1">Tutar (TL)</label>
                   <input
                     type="number"
                     value={editAmount}
                     onChange={(e) => setEditAmount(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 font-bold text-slate-800 focus:border-emerald-600 focus:outline-none"
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 font-bold text-white focus:border-emerald-400 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Ek Not</label>
+                <label className="block font-bold text-slate-300 mb-1">Ek Not</label>
                 <input
                   type="text"
                   value={editNotes}
                   onChange={(e) => setEditNotes(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-800 focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-white focus:border-emerald-400 focus:outline-none"
                 />
               </div>
 
@@ -667,13 +723,13 @@ export default function MuhasebePanelPage() {
                 <button
                   type="button"
                   onClick={() => setEditingItem(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50"
+                  className="px-4 py-2 rounded-xl border border-white/15 text-slate-300 font-bold hover:bg-white/10"
                 >
                   Vazgeç
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-sm flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold transition shadow-lg flex items-center gap-1.5"
                 >
                   <Save className="h-4 w-4" />
                   <span>Değişiklikleri Kaydet</span>
