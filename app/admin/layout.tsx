@@ -91,12 +91,12 @@ export default function AdminLayout({
       icon: UserCog,
       badge: "Yönetici"
     },
-    {
-      name: "Rapor Kayıtları (Loglar)",
-      href: "/admin/rapor-kayitlari",
-      icon: FileSpreadsheet,
-      badge: "Muhasebe/Kasa"
-    },
+    // {
+    //   name: "Rapor Kayıtları (Loglar)",
+    //   href: "/admin/rapor-kayitlari",
+    //   icon: FileSpreadsheet,
+    //   badge: "Muhasebe/Kasa"
+    // },
     {
     name: "Anlaşmalı Firmalar",
     href: "/admin/firmalar",
