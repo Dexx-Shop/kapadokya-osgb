@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { 
   UserCog, 
-  Lock, 
-  Mail, 
   ShieldCheck, 
   CheckCircle2, 
   AlertCircle, 
@@ -35,7 +33,6 @@ export default function AdminProfilePage() {
     load();
   }, [supabase]);
 
-  // Bilgileri Güncelle
   async function handleUpdateInfo(e: React.FormEvent) {
     e.preventDefault();
     setSavingInfo(true);
@@ -57,7 +54,6 @@ export default function AdminProfilePage() {
     setSavingInfo(false);
   }
 
-  // Şifre Güncelle
   async function handleUpdatePassword(e: React.FormEvent) {
     e.preventDefault();
     if (newPassword.length < 6) {
@@ -85,13 +81,13 @@ export default function AdminProfilePage() {
     <div className="space-y-6">
       
       {/* Üst Kart */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-black text-amber-800 mb-2">
-          <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
+      <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 px-3 py-1 text-xs font-bold text-purple-300 mb-2">
+          <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
           <span>Yönetim Konsolu Yetkisi</span>
         </div>
-        <h1 className="text-2xl font-black text-slate-900">Yönetici Profil & Güvenlik</h1>
-        <p className="text-xs text-slate-500 mt-1">
+        <h1 className="text-2xl font-black text-white">Yönetici Profil & Güvenlik</h1>
+        <p className="text-xs text-slate-400 mt-1">
           Yönetici adınızı, hesap erişim detaylarınızı ve panel giriş şifrenizi buradan yönetebilirsiniz.
         </p>
       </div>
@@ -99,15 +95,17 @@ export default function AdminProfilePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         {/* KİŞİSEL BİLGİLER */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
-          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
-            <UserCog className="h-4 w-4 text-[#d84315]" />
+        <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl space-y-4">
+          <h2 className="text-sm font-bold text-white flex items-center gap-2">
+            <UserCog className="h-4 w-4 text-purple-400" />
             <span>Yönetici Bilgileri</span>
           </h2>
 
           {infoMsg && (
-            <div className={`mb-4 flex items-center gap-2 rounded-xl p-3 text-xs font-semibold ${
-              infoMsg.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
+            <div className={`flex items-center gap-2 rounded-xl p-3 text-xs font-semibold border ${
+              infoMsg.type === "success" 
+                ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" 
+                : "bg-rose-500/10 text-rose-300 border-rose-500/30"
             }`}>
               {infoMsg.type === "success" ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
               <span>{infoMsg.text}</span>
@@ -116,30 +114,30 @@ export default function AdminProfilePage() {
 
           <form onSubmit={handleUpdateInfo} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700">Yönetici Adı Soyadı</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">Yönetici Adı Soyadı</label>
               <input
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-2.5 px-3.5 text-sm text-slate-900 shadow-sm focus:border-[#d84315] focus:outline-none transition"
+                className="w-full rounded-xl border border-white/15 bg-white/5 py-2.5 px-3.5 text-xs text-white focus:border-purple-400 focus:outline-none transition"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700">Kayıtlı E-posta (Değiştirilemez)</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">Kayıtlı E-posta (Değiştirilemez)</label>
               <input
                 type="email"
                 value={email}
                 disabled
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-100 py-2.5 px-3.5 text-sm text-slate-500 cursor-not-allowed"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.02] py-2.5 px-3.5 text-xs text-slate-500 cursor-not-allowed"
               />
             </div>
 
             <button
               type="submit"
               disabled={savingInfo}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#d84315] px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-[#d84315]/25 hover:bg-[#bf360c] transition active:scale-95 disabled:opacity-70 cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-purple-600/25 transition active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               {savingInfo ? <Loader2 className="h-4 w-4 animate-spin" /> : <span>Bilgileri Güncelle</span>}
             </button>
@@ -147,15 +145,17 @@ export default function AdminProfilePage() {
         </div>
 
         {/* ŞİFRE DEĞİŞTİRME */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
-          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
-            <KeyRound className="h-4 w-4 text-[#d84315]" />
+        <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl space-y-4">
+          <h2 className="text-sm font-bold text-white flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-purple-400" />
             <span>Şifre Yenileme</span>
           </h2>
 
           {passMsg && (
-            <div className={`mb-4 flex items-center gap-2 rounded-xl p-3 text-xs font-semibold ${
-              passMsg.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
+            <div className={`flex items-center gap-2 rounded-xl p-3 text-xs font-semibold border ${
+              passMsg.type === "success" 
+                ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" 
+                : "bg-rose-500/10 text-rose-300 border-rose-500/30"
             }`}>
               {passMsg.type === "success" ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
               <span>{passMsg.text}</span>
@@ -164,25 +164,23 @@ export default function AdminProfilePage() {
 
           <form onSubmit={handleUpdatePassword} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700">Yeni Yönetici Şifresi</label>
-              <div className="relative mt-1">
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  placeholder="En az 6 karakter"
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-3.5 text-sm text-slate-900 shadow-sm focus:border-[#d84315] focus:outline-none transition"
-                />
-              </div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">Yeni Yönetici Şifresi</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={6}
+                placeholder="En az 6 karakter"
+                className="w-full rounded-xl border border-white/15 bg-white/5 py-2.5 px-3.5 text-xs text-white placeholder-slate-500 focus:border-purple-400 focus:outline-none transition"
+              />
             </div>
 
             <div className="pt-7">
               <button
                 type="submit"
                 disabled={savingPass}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-slate-800 transition active:scale-95 disabled:opacity-70 cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 px-6 py-2.5 text-xs font-bold text-white border border-white/10 transition active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {savingPass ? <Loader2 className="h-4 w-4 animate-spin" /> : <span>Şifreyi Değiştir</span>}
               </button>

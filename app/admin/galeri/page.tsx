@@ -11,7 +11,8 @@ import {
   AlertCircle, 
   Loader2, 
   Image as ImageIcon,
-  ExternalLink
+  ExternalLink,
+  Sparkles
 } from "lucide-react";
 
 interface GalleryItem {
@@ -46,7 +47,6 @@ export default function AdminGalleryPage() {
     setLoading(false);
   }
 
-  // Fotoğraf Yükle
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
     if (!file) {
@@ -90,7 +90,6 @@ export default function AdminGalleryPage() {
     }
   }
 
-  // Fotoğraf Sil
   async function handleDelete(id: string) {
     if (!confirm("Bu fotoğrafı galeriden silmek istediğinize emin misiniz?")) return;
 
@@ -104,18 +103,22 @@ export default function AdminGalleryPage() {
     <div className="space-y-6">
       
       {/* Üst Başlık Kartı */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white/[0.03] border border-white/10 p-6 sm:p-8 rounded-3xl backdrop-blur-xl shadow-2xl">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Galeri Fotoğraf Yönetimi</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Telefondan ya da bilgisayardan anında galeriye fotoğraf yükleyin veya yayından kaldırın.
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 px-3 py-1 text-xs font-bold text-purple-300 mb-2">
+            <ImageIcon className="h-3.5 w-3.5 text-purple-400" />
+            <span>Medya & Albüm Modülü</span>
+          </div>
+          <h1 className="text-2xl font-black text-white">Galeri Fotoğraf Yönetimi</h1>
+          <p className="text-xs text-slate-400 mt-1">
+            Anında galeriye yüksek kaliteli fotoğraf yükleyin veya yayından kaldırın.
           </p>
         </div>
 
         <Link
           href="/galeri"
           target="_blank"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-700 transition"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2 text-xs font-bold text-slate-200 transition"
         >
           <span>Canlı Galeriyi Gör</span>
           <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
@@ -123,15 +126,17 @@ export default function AdminGalleryPage() {
       </div>
 
       {/* Fotoğraf Yükleme Kartı */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
-        <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
-          <UploadCloud className="h-5 w-5 text-[#d84315]" />
+      <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl space-y-4">
+        <h2 className="text-sm font-bold text-white flex items-center gap-2">
+          <UploadCloud className="h-5 w-5 text-purple-400" />
           <span>Yeni Fotoğraf Yükle</span>
         </h2>
 
         {message && (
-          <div className={`mb-4 flex items-center gap-2 rounded-xl p-3 text-xs font-semibold ${
-            message.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
+          <div className={`flex items-center gap-2 rounded-xl p-3 text-xs font-semibold border ${
+            message.type === "success" 
+              ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" 
+              : "bg-rose-500/10 text-rose-300 border-rose-500/30"
           }`}>
             {message.type === "success" ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
             <span>{message.text}</span>
@@ -140,30 +145,30 @@ export default function AdminGalleryPage() {
 
         <form onSubmit={handleUpload} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Fotoğraf Başlığı / Açıklama (İsteğe Bağlı)</label>
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">Fotoğraf Başlığı / Açıklama (İsteğe Bağlı)</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Örn: Nevşehir Şantiye Denetimi veya Hizmet Binamız"
-              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-3.5 text-sm text-slate-900 shadow-sm focus:border-[#d84315] focus:outline-none transition"
+              className="w-full rounded-xl border border-white/15 bg-white/5 py-2.5 px-3.5 text-xs text-white placeholder-slate-500 focus:border-purple-400 focus:outline-none transition"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Görsel Seç (Kamera veya Galeri)</label>
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">Görsel Seç (Kamera veya Dosya)</label>
             <input
               type="file"
               accept="image/*"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-4 text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#d84315] file:text-white hover:file:bg-[#bf360c] cursor-pointer"
+              className="w-full rounded-xl border border-dashed border-white/20 bg-white/[0.02] p-4 text-xs text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gradient-to-r file:from-purple-600 file:to-pink-600 file:text-white hover:file:opacity-90 cursor-pointer"
             />
           </div>
 
           <button
             type="submit"
             disabled={uploading}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#d84315] px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-[#d84315]/25 hover:bg-[#bf360c] transition active:scale-95 disabled:opacity-60 cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-purple-600/25 transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {uploading ? (
               <>
@@ -181,25 +186,25 @@ export default function AdminGalleryPage() {
       </div>
 
       {/* Yayındaki Fotoğraflar Listesi */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
-        <h2 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <ImageIcon className="h-5 w-5 text-slate-600" />
+      <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl space-y-4">
+        <h2 className="text-sm font-bold text-white flex items-center gap-2">
+          <ImageIcon className="h-5 w-5 text-purple-400" />
           <span>Galeride Yayında Olan Fotoğraflar ({photos.length})</span>
         </h2>
 
         {loading ? (
           <div className="flex justify-center p-12">
-            <Loader2 className="h-8 w-8 animate-spin text-[#d84315]" />
+            <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
           </div>
         ) : photos.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-xs font-medium text-slate-500">
-            Henüz fotoğraf yüklenmemiş. Yukarıdaki alandan ilk fotoğrafı yükleyebilirsiniz.
+          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.01] p-10 text-center text-xs text-slate-500">
+            Henüz fotoğraf yüklenmemiş. Yukarıdaki formdan ilk görseli ekleyebilirsiniz.
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {photos.map((item) => (
-              <div key={item.id} className="group relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
-                <div className="relative h-44 w-full bg-slate-100">
+              <div key={item.id} className="group relative rounded-2xl overflow-hidden border border-white/10 bg-white/[0.02] shadow-sm hover:border-purple-400/50 transition">
+                <div className="relative h-44 w-full bg-slate-900">
                   <Image
                     src={item.image_url}
                     alt={item.title || "Galeri"}
@@ -207,14 +212,14 @@ export default function AdminGalleryPage() {
                     className="object-cover"
                   />
                 </div>
-                <div className="p-2.5 flex items-center justify-between bg-white">
-                  <span className="text-xs font-bold text-slate-800 truncate pr-2">
+                <div className="p-3 flex items-center justify-between bg-black/40 backdrop-blur-md">
+                  <span className="text-xs font-bold text-white truncate pr-2">
                     {item.title}
                   </span>
                   <button
                     onClick={() => handleDelete(item.id)}
                     title="Sil"
-                    className="text-rose-600 hover:text-rose-800 p-1.5 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+                    className="text-rose-400 hover:text-rose-300 p-1.5 rounded-lg hover:bg-rose-500/20 transition cursor-pointer"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
