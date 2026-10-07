@@ -7,31 +7,25 @@ import { createClient } from "@/lib/supabase/client";
 import { isSuperAdminEmail } from "@/lib/constants";
 import { 
   Stethoscope, 
-  CheckCircle2, 
   BookOpen, 
-  Check, 
-  AlertTriangle, 
   Plus, 
   Trash2, 
   UserCheck, 
-  Search,
-  ArrowLeft,
-  LogOut,
-  Sparkles
+  Search, 
+  ArrowLeft, 
+  LogOut, 
+  Sparkles, 
+  FileSpreadsheet, 
+  Send, 
+  ChevronDown,
+  AlertTriangle
 } from "lucide-react";
 
-interface HealthReport {
+interface Company {
   id: string;
-  patient_name: string;
-  tc_no: string;
-  company_name: string;
-  payment_method: "nakit" | "pos" | "cari";
-  amount: number;
-  notes: string;
-  status: "bekliyor" | "alt_kat_tamamlandi" | "tamamlandi";
-  report_date: string;
-  required_tests?: string[];
-  completed_tests?: string[];
+  name: string;
+  recommended_price: number;
+  tests: string[];
 }
 
 interface TestGuide {
@@ -43,13 +37,24 @@ interface TestGuide {
 }
 
 export default function UzmanPanelPage() {
-  const [activeTab, setActiveTab] = useState<"rapor_kontrol" | "test_rehberi">("rapor_kontrol");
+  const [activeTab, setActiveTab] = useState<"rapor_girisi" | "test_rehberi">("rapor_girisi");
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Raporlar & Kuyruk
-  const [reports, setReports] = useState<HealthReport[]>([]);
+  // Firmalar
+  const [companies, setCompanies] = useState<Company[]>([]);
+
+  // Rapor Giriş Formu State'leri
+  const [patientName, setPatientName] = useState("");
+  const [tcNo, setTcNo] = useState("");
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [customCompanyName, setCustomCompanyName] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"nakit" | "pos" | "cari">("nakit");
+  const [amount, setAmount] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submittingReport, setSubmittingReport] = useState(false);
+  const [reportMessage, setReportMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Test Rehberi State
   const [testGuides, setTestGuides] = useState<TestGuide[]>([]);
@@ -59,13 +64,6 @@ export default function UzmanPanelPage() {
   const [newCategory, setNewCategory] = useState("Genel");
   const [newInstructions, setNewInstructions] = useState("");
   const [newNotes, setNewNotes] = useState("");
-
-  // Eksik Test Uyarı Modali
-  const [missingTestsModal, setMissingTestsModal] = useState<{
-    reportId: string;
-    patientName: string;
-    missing: string[];
-  } | null>(null);
 
   const router = useRouter();
   const supabase = createClient();
@@ -95,7 +93,7 @@ export default function UzmanPanelPage() {
         }
       }
 
-      fetchReports();
+      fetchCompanies();
       fetchGuides();
       setLoading(false);
     }
@@ -103,81 +101,104 @@ export default function UzmanPanelPage() {
     checkAuth();
   }, [router, supabase]);
 
-  async function fetchReports() {
-    const { data } = await supabase.from("health_reports").select("*").order("report_date", { ascending: false });
-    setReports(data || []);
+  async function fetchCompanies() {
+    const { data } = await supabase
+      .from("companies")
+      .select("*")
+      .order("name", { ascending: true });
+    setCompanies(data || []);
   }
 
   async function fetchGuides() {
-    const { data } = await supabase.from("test_guides").select("*").order("title", { ascending: true });
+    const { data } = await supabase
+      .from("test_guides")
+      .select("*")
+      .order("title", { ascending: true });
     setTestGuides(data || []);
   }
-
-  // Realtime Rapor Dinleme
-  useEffect(() => {
-    const channel = supabase
-      .channel("uzman_live_dark_channel")
-      .on("postgres_changes", { event: "*", schema: "public", table: "health_reports" }, (payload) => {
-        if (payload.eventType === "INSERT") {
-          const rec = payload.new as HealthReport;
-          setReports((prev) => [rec, ...prev.filter((r) => r.id !== rec.id)]);
-        } else if (payload.eventType === "UPDATE") {
-          const updated = payload.new as HealthReport;
-          setReports((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-        } else if (payload.eventType === "DELETE") {
-          setReports((prev) => prev.filter((r) => r.id !== payload.old.id));
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push("/");
   }
 
-  // Test Kutucuğu Tıklama
-  async function handleToggleTest(reportId: string, testName: string, currentCompleted: string[] = []) {
-    let updated: string[] = [];
-    if (currentCompleted.includes(testName)) {
-      updated = currentCompleted.filter((t) => t !== testName);
-    } else {
-      updated = [...currentCompleted, testName];
+  function handleSelectCompany(compId: string) {
+    setSelectedCompanyId(compId);
+    if (compId === "diger") {
+      setAmount("");
+      return;
     }
-
-    setReports((prev) => prev.map((r) => (r.id === reportId ? { ...r, completed_tests: updated } : r)));
-
-    await supabase.from("health_reports").update({ completed_tests: updated }).eq("id", reportId);
+    const found = companies.find((c) => c.id === compId);
+    if (found && found.recommended_price) {
+      setAmount(found.recommended_price.toString());
+    }
   }
 
-  // İşlem Tamamlandı Kontrolü
-  function handleCheckAndComplete(report: HealthReport) {
-    const required = report.required_tests || [];
-    const completed = report.completed_tests || [];
-    const missing = required.filter((t) => !completed.includes(t));
+  // Rapor Kaydı Açma (Doğrudan sisteme işlenir)
+  async function handleSendReport(e: React.FormEvent) {
+    e.preventDefault();
+    let finalCompanyName = "";
+    let finalTests: string[] = [];
 
-    if (missing.length > 0) {
-      setMissingTestsModal({
-        reportId: report.id,
-        patientName: report.patient_name,
-        missing: missing,
-      });
+    if (selectedCompanyId === "diger") {
+      if (!customCompanyName.trim()) {
+        setReportMessage({ type: "error", text: "Lütfen firma adını yazınız." });
+        return;
+      }
+      finalCompanyName = customCompanyName.trim();
+      finalTests = ["Genel Tetkikler"];
+    } else {
+      const found = companies.find((c) => c.id === selectedCompanyId);
+      if (!found) {
+        setReportMessage({ type: "error", text: "Lütfen bir firma seçiniz." });
+        return;
+      }
+      finalCompanyName = found.name;
+      finalTests = found.tests || [];
+    }
+
+    if (!patientName.trim() || !tcNo.trim()) {
+      setReportMessage({ type: "error", text: "Lütfen ad soyad ve TC kimlik alanlarını doldurun." });
       return;
     }
 
-    finalizeAltKatSend(report.id);
+    setSubmittingReport(true);
+    setReportMessage(null);
+
+    const userName = currentUser.user_metadata?.full_name || currentUser.email;
+
+    const { error } = await supabase.from("health_reports").insert([
+      {
+        patient_name: patientName.trim(),
+        tc_no: tcNo.trim(),
+        company_name: finalCompanyName,
+        payment_method: paymentMethod,
+        amount: Number(amount) || 0,
+        notes: notes.trim(),
+        status: "tamamlandi",
+        report_date: new Date().toISOString(),
+        created_by_name: userName,
+        created_by_role: "alt_kat",
+        required_tests: finalTests,
+        completed_tests: finalTests,
+      },
+    ]);
+
+    setSubmittingReport(false);
+
+    if (error) {
+      setReportMessage({ type: "error", text: "Hata: " + error.message });
+    } else {
+      setReportMessage({ type: "success", text: `${patientName} sağlık raporu kaydı sisteme işlendi!` });
+      setPatientName("");
+      setTcNo("");
+      setSelectedCompanyId("");
+      setCustomCompanyName("");
+      setAmount("");
+      setNotes("");
+    }
   }
 
-  async function finalizeAltKatSend(reportId: string) {
-    await supabase.from("health_reports").update({ status: "alt_kat_tamamlandi" }).eq("id", reportId);
-    setMissingTestsModal(null);
-  }
-
-  // Yeni Test Rehberi Ekleme
   async function handleAddGuide(e: React.FormEvent) {
     e.preventDefault();
     if (!newTitle.trim() || !newInstructions.trim()) return;
@@ -217,11 +238,11 @@ export default function UzmanPanelPage() {
     );
   }
 
-  const altKatBekleyenler = reports.filter((r) => r.status === "bekliyor");
   const filteredGuides = testGuides.filter((g) => 
     g.title.toLowerCase().includes(guideSearch.toLowerCase()) ||
     g.instructions.toLowerCase().includes(guideSearch.toLowerCase())
   );
+  const selectedCompanyObj = companies.find((c) => c.id === selectedCompanyId);
 
   return (
     <div className="fixed inset-0 z-[9999] bg-[#07090e] text-slate-100 overflow-y-auto selection:bg-blue-500 selection:text-white">
@@ -230,7 +251,7 @@ export default function UzmanPanelPage() {
       <div className="absolute top-0 right-1/4 w-[600px] h-[350px] bg-gradient-to-b from-blue-500/10 via-indigo-500/5 to-transparent blur-3xl pointer-events-none rounded-full" />
       <div className="absolute bottom-10 left-10 w-80 h-80 bg-blue-600/10 blur-[100px] pointer-events-none rounded-full" />
 
-      {/* ÜST MİNİ NAVİGASYON (GLOBAL NAVBAR TAMAMEN KALKTI) */}
+      {/* ÜST MİNİ BAR */}
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-black/50 border-b border-white/10 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
@@ -243,7 +264,7 @@ export default function UzmanPanelPage() {
           <div className="h-4 w-px bg-white/20 hidden sm:block" />
           <span className="text-xs font-bold text-slate-400 hidden sm:inline-flex items-center gap-1.5">
             <Stethoscope className="h-4 w-4 text-blue-400" />
-            <span>Alt Kat Tetkik & Muayene İstasyonu</span>
+            <span>Uzman Tetkik & Muayene İstasyonu</span>
           </span>
         </div>
 
@@ -281,22 +302,15 @@ export default function UzmanPanelPage() {
 
           <nav className="space-y-1.5">
             <button
-              onClick={() => setActiveTab("rapor_kontrol")}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition cursor-pointer ${
-                activeTab === "rapor_kontrol"
+              onClick={() => setActiveTab("rapor_girisi")}
+              className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition cursor-pointer ${
+                activeTab === "rapor_girisi"
                   ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/25"
                   : "text-slate-400 hover:bg-white/5 hover:text-white"
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <CheckCircle2 className="h-4 w-4" />
-                <span>Sağlık Raporu Kontrol</span>
-              </div>
-              {altKatBekleyenler.length > 0 && (
-                <span className="bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full text-[10px] font-black animate-pulse">
-                  {altKatBekleyenler.length}
-                </span>
-              )}
+              <FileSpreadsheet className="h-4 w-4" />
+              <span>Sağlık Raporu Girişi</span>
             </button>
 
             <button
@@ -314,7 +328,7 @@ export default function UzmanPanelPage() {
 
           <div className="pt-4 border-t border-white/10 text-xs text-slate-400 space-y-2">
             <p className="text-[11px] leading-relaxed text-slate-400">
-              İnen hastaların tetkiklerini tamamlayıp yukarı sevk edebilir, test yönergelerine göz atabilirsiniz.
+              Muayenesi tamamlanan hastaların rapor girişini yapabilir ve test uygulama yönergelerine göz atabilirsiniz.
             </p>
           </div>
         </aside>
@@ -322,89 +336,156 @@ export default function UzmanPanelPage() {
         {/* SAĞ: ÇALIŞMA ALANI */}
         <main className="lg:col-span-9 space-y-6">
           
-          {/* TAB 1: SAĞLIK RAPORU KONTROL */}
-          {activeTab === "rapor_kontrol" && (
-            <div className="rounded-3xl bg-white/[0.03] border border-blue-500/20 p-6 sm:p-8 shadow-2xl backdrop-blur-xl space-y-5">
+          {/* TAB 1: SAĞLIK RAPORU GİRİŞİ */}
+          {activeTab === "rapor_girisi" && (
+            <div className="rounded-3xl bg-white/[0.03] border border-blue-500/20 p-6 sm:p-8 shadow-2xl backdrop-blur-xl space-y-6">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <div>
-                  <span className="text-xs font-bold text-blue-400 uppercase tracking-wider block">Uzman Tetkik Sırası</span>
-                  <h2 className="text-lg font-bold text-white mt-0.5">Sırada Bekleyen Hastalar & Tetkik Kontrolü</h2>
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-blue-400" />
+                  <h2 className="text-base font-bold text-white">Yeni Sağlık Raporu Girişi</h2>
                 </div>
-                <span className="text-xs font-black bg-blue-500/20 text-blue-300 border border-blue-500/30 px-3 py-1 rounded-full">
-                  {altKatBekleyenler.length} Hasta Bekliyor
+                <span className="text-xs text-slate-400 font-mono">
+                  {new Date().toLocaleDateString("tr-TR")} {new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
                 </span>
               </div>
 
-              {altKatBekleyenler.length === 0 ? (
-                <div className="py-20 text-center text-xs text-slate-500">
-                  Şu anda sırada bekleyen hasta bulunmuyor. Muhasebeden yeni sevk açıldığında otomatik buraya düşecektir.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {altKatBekleyenler.map((item) => (
-                    <div key={item.id} className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] hover:border-blue-400/50 transition flex flex-col justify-between space-y-4 shadow-xl">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-[11px] text-slate-400">
-                          <span>{new Date(item.report_date).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}</span>
-                          <span className="font-bold text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-full border border-blue-500/30">Sırada</span>
-                        </div>
-                        
-                        <div>
-                          <div className="text-base font-bold text-white">{item.patient_name}</div>
-                          <div className="text-xs font-mono text-slate-400">{item.tc_no}</div>
-                          <div className="text-xs text-slate-300 mt-0.5">Firma: <strong className="text-blue-300">{item.company_name}</strong></div>
-                        </div>
-
-                        {item.notes && (
-                          <div className="text-[11px] text-amber-300 bg-amber-500/10 p-2 rounded-xl border border-amber-500/20">
-                            Not: {item.notes}
-                          </div>
-                        )}
-
-                        <div className="pt-2 border-t border-white/10 space-y-1.5">
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                            Yapılacak Tetkikler:
-                          </span>
-                          
-                          {item.required_tests && item.required_tests.length > 0 ? (
-                            item.required_tests.map((testName, i) => {
-                              const isDone = item.completed_tests?.includes(testName);
-                              return (
-                                <label
-                                  key={i}
-                                  className={`flex items-center gap-2 p-2 rounded-xl border text-xs cursor-pointer transition select-none ${
-                                    isDone
-                                      ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold"
-                                      : "bg-white/5 border-white/10 text-slate-300 hover:border-blue-400/50"
-                                  }`}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={isDone}
-                                    onChange={() => handleToggleTest(item.id, testName, item.completed_tests)}
-                                    className="h-4 w-4 rounded border-white/20 text-emerald-500 focus:ring-emerald-400 cursor-pointer bg-slate-900"
-                                  />
-                                  <span>{testName}</span>
-                                </label>
-                              );
-                            })
-                          ) : (
-                            <div className="text-[11px] text-slate-500 italic">Tanımlı tetkik yok (Genel)</div>
-                          )}
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => handleCheckAndComplete(item)}
-                        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs transition shadow-lg shadow-blue-600/25 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
-                      >
-                        <Check className="h-4 w-4" />
-                        <span>İşlem Tamamlandı (Yukarıya Sevk)</span>
-                      </button>
-                    </div>
-                  ))}
+              {reportMessage && (
+                <div className={`p-3.5 rounded-2xl text-xs font-bold border ${
+                  reportMessage.type === "success" 
+                    ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300" 
+                    : "bg-rose-500/20 border-rose-500/40 text-rose-300"
+                }`}>
+                  {reportMessage.text}
                 </div>
               )}
+
+              <form onSubmit={handleSendReport} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">Kişinin Adı Soyadı *</label>
+                    <input
+                      type="text"
+                      required
+                      value={patientName}
+                      onChange={(e) => setPatientName(e.target.value)}
+                      placeholder="Örn: Ahmet Yılmaz"
+                      className="w-full rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-blue-400 focus:outline-none transition shadow-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">T.C. Kimlik No *</label>
+                    <input
+                      type="text"
+                      maxLength={11}
+                      required
+                      value={tcNo}
+                      onChange={(e) => setTcNo(e.target.value)}
+                      placeholder="11 haneli kimlik no"
+                      className="w-full rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-xs font-mono text-white placeholder-slate-500 focus:border-blue-400 focus:outline-none transition shadow-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">Çalışacağı Firma / Yer *</label>
+                    <div className="relative">
+                      <select
+                        value={selectedCompanyId}
+                        onChange={(e) => handleSelectCompany(e.target.value)}
+                        className="w-full appearance-none rounded-xl border border-white/15 bg-slate-900 px-3.5 py-2.5 text-xs font-bold text-white focus:border-blue-400 focus:outline-none transition shadow-sm cursor-pointer pr-8"
+                      >
+                        <option value="">-- Firma Seçiniz --</option>
+                        {companies.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} {c.recommended_price ? `(Tavsiye: ₺${c.recommended_price})` : ""}
+                          </option>
+                        ))}
+                        <option value="diger">➕ Listede Yok (Elle Giriş / Şahıs)</option>
+                      </select>
+                      <ChevronDown className="h-4 w-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
+                    {selectedCompanyId === "diger" && (
+                      <input
+                        type="text"
+                        required
+                        placeholder="Firma / İşyeri Adını Yazınız"
+                        value={customCompanyName}
+                        onChange={(e) => setCustomCompanyName(e.target.value)}
+                        className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-3.5 py-2 text-xs text-white focus:border-blue-400 focus:outline-none"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {selectedCompanyObj && (
+                  <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-in fade-in">
+                    <div className="flex items-center gap-2">
+                      <Stethoscope className="h-4 w-4 text-blue-400 shrink-0" />
+                      <div>
+                        <span className="font-bold text-blue-300">İstenen Tetkikler: </span>
+                        <span className="text-slate-200 font-medium">
+                          {selectedCompanyObj.tests?.length ? selectedCompanyObj.tests.join(" • ") : "Standart Tetkikler"}
+                        </span>
+                      </div>
+                    </div>
+                    {selectedCompanyObj.recommended_price > 0 && (
+                      <div className="text-right shrink-0">
+                        <span className="text-slate-400">Tavsiye Edilen: </span>
+                        <strong className="text-emerald-400 font-black text-sm">₺{selectedCompanyObj.recommended_price}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">Ödeme Alınma Biçimi *</label>
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value as any)}
+                      className="w-full rounded-xl border border-white/15 bg-slate-900 px-3.5 py-2.5 text-xs font-bold text-white focus:border-blue-400 focus:outline-none transition shadow-sm"
+                    >
+                      <option value="nakit">💵 Nakit</option>
+                      <option value="pos">💳 POS / Kredi Kartı</option>
+                      <option value="cari">📑 Cari (Firma Hesabı)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">Tahsil Edilecek Tutar (TL)</label>
+                    <input
+                      type="number"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="0"
+                      className="w-full rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white placeholder-slate-500 focus:border-blue-400 focus:outline-none transition shadow-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">Ek Not (Varsa)</label>
+                  <input
+                    type="text"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Örn: Rapor ve tetkik notları..."
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-blue-400 focus:outline-none transition shadow-sm"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end">
+                  <button
+                    type="submit"
+                    disabled={submittingReport}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-600/25 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                  >
+                    <Send className="h-4 w-4" />
+                    <span>{submittingReport ? "Kaydediliyor..." : "Rapor Kaydını Tamamla"}</span>
+                  </button>
+                </div>
+              </form>
             </div>
           )}
 
@@ -561,53 +642,6 @@ export default function UzmanPanelPage() {
 
         </main>
       </div>
-
-      {/* EKSİK TEST UYARI MODALİ */}
-      {missingTestsModal && (
-        <div className="fixed inset-0 z-[10000] bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#0e131f] rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-amber-500/30 animate-in zoom-in-95 space-y-4">
-            <div className="flex items-center gap-3 text-amber-400">
-              <div className="p-2.5 rounded-2xl bg-amber-500/20 border border-amber-500/30">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-white">İşaretlenmemiş Testler Var!</h3>
-                <p className="text-xs text-slate-400">{missingTestsModal.patientName} için eksik testler:</p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-xs text-amber-300 space-y-1">
-              {missingTestsModal.missing.map((t, idx) => (
-                <div key={idx} className="flex items-center gap-1.5 font-bold">
-                  <span>•</span>
-                  <span>{t}</span>
-                </div>
-              ))}
-            </div>
-
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Bu testleri yapmadınız veya işaretlemediniz. Yine de hastayı muhasebeye göndermek istediğinize emin misiniz?
-            </p>
-
-            <div className="pt-2 flex justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setMissingTestsModal(null)}
-                className="px-4 py-2.5 rounded-xl border border-white/15 text-slate-300 font-bold text-xs hover:bg-white/5 cursor-pointer"
-              >
-                Geri Dön (Testi Yap)
-              </button>
-              <button
-                type="button"
-                onClick={() => finalizeAltKatSend(missingTestsModal.reportId)}
-                className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition shadow-lg cursor-pointer"
-              >
-                Evet, Yine de Gönder
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
